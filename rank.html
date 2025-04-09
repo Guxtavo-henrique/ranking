@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ranking do Fut</title>
+    <style>
+        :root {
+            --cor-principal: #6a0dad;
+            --cor-secundaria: #d8b4fe;
+            --cor-fundo: #f4f0ff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 1rem;
+            background-color: var(--cor-fundo);
+            color: #333;
+        }
+
+        h1,
+        h2 {
+            text-align: center;
+            color: var(--cor-principal);
+        }
+
+        .container {
+            max-width: 700px;
+            margin: auto;
+            padding: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        th {
+            background-color: var(--cor-secundaria);
+        }
+
+        .top-3 {
+            font-weight: bold;
+            background-color: #e9d5ff;
+        }
+
+        .mvp {
+            background-color: #ffd700;
+            font-weight: bold;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .input-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            justify-content: space-between;
+        }
+
+        input,
+        button,
+        select {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            flex: 1 1 auto;
+        }
+
+        .admin-section {
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 600px) {
+            .input-wrapper {
+                flex-direction: column;
+            }
+
+            input,
+            button,
+            select {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Ranking do Fut</h1>
+
+        <div class="input-wrapper">
+            <input type="text" id="admin-password" placeholder="Senha de administrador" />
+            <button onclick="loginAdmin()">Entrar como Admin</button>
+        </div>
+
+        <div id="pontuacao-form" class="input-wrapper" style="display: none;">
+            <select id="jogador-select"></select>
+            <input type="number" id="presencas" placeholder="Presenças" />
+            <input type="number" id="vitorias" placeholder="Vitórias" />
+            <input type="number" id="assistencias" placeholder="Assistências" />
+            <input type="number" id="gols" placeholder="Gols" />
+            <button onclick="adicionarPontuacao()">Lançar Pontuação</button>
+        </div>
+
+        <div id="reset-btn" style="display: none; text-align: center; margin-top: 1rem;">
+            <button onclick="resetarRanking()">🔄 Resetar Ranking</button>
+        </div>
+
+        <h2>Ranking</h2>
+        <table id="ranking"></table>
+        <div id="mvp" class="mvp"></div>
+
+        <h2>Dívidas</h2>
+        <div id="dividas-form" class="input-wrapper" style="display: none;">
+            <input type="text" id="nome-divida" placeholder="Nome do devedor" />
+            <input type="number" id="valor-divida" placeholder="Valor (R$)" />
+            <button onclick="adicionarDivida()">Adicionar Dívida</button>
+        </div>
+        <table id="dividas"></table>
+    </div>
+
+    <script>
+        const jogadores = [
+            "Pedro", "Gustavo", "Pagode", "Cleiton", "Ezequiel", "Falcão",
+            "David", "Jean", "Índio", "Arthur", "Paiva", "Pelé", "Celso",
+            "Lc", "Armando", "Junin", "Caio Rafael", "Gustavin", "Kayo",
+            "Henrique", "João", "Jacaré", "Lucas Abreu", "Kauan", "Kaiox",
+            "André", "Léo", "Pão de queijo"
+        ];
+
+        let pontuacoes = {};
+        let dividas = [];
+        let isAdmin = false;
+
+        // Carrega do localStorage
+        if (localStorage.getItem("pontuacoes")) {
+            pontuacoes = JSON.parse(localStorage.getItem("pontuacoes"));
+        } else {
+            jogadores.forEach(j => pontuacoes[j] = { presencas: 0, vitorias: 0, assistencias: 0, gols: 0 });
+        }
+
+        if (localStorage.getItem("dividas")) {
+            dividas = JSON.parse(localStorage.getItem("dividas"));
+        }
+
+        function salvarDados() {
+            localStorage.setItem("pontuacoes", JSON.stringify(pontuacoes));
+            localStorage.setItem("dividas", JSON.stringify(dividas));
+        }
+
+        function loginAdmin() {
+            const senha = document.getElementById("admin-password").value;
+            if (senha === "777") {
+                isAdmin = true;
+                document.getElementById("pontuacao-form").style.display = "flex";
+                document.getElementById("dividas-form").style.display = "flex";
+                document.getElementById("reset-btn").style.display = "block";
+                renderDividas();
+            } else {
+                alert("Senha incorreta");
+            }
+        }
+
+        function calcularPontos(jogador) {
+            const p = pontuacoes[jogador];
+            return p.presencas * 1 + p.vitorias * 1 + p.assistencias * 2 + p.gols * 3;
+        }
+
+        function renderRanking() {
+            const table = document.getElementById("ranking");
+            table.innerHTML = `<tr><th>Posição</th><th>Nome</th><th>Pontos</th></tr>`;
+            const rankingOrdenado = jogadores.map(j => ({ nome: j, pontos: calcularPontos(j) }))
+                .sort((a, b) => b.pontos - a.pontos);
+
+            const mvp = rankingOrdenado[0];
+            document.getElementById("mvp").innerText = `MVP da Rodada: ${mvp.nome} (${mvp.pontos} pontos)`;
+
+            rankingOrdenado.forEach((jogador, i) => {
+                const row = table.insertRow();
+                if (i < 3) row.className = "top-3";
+                row.innerHTML = `<td>${i + 1}</td><td>${jogador.nome}</td><td>${jogador.pontos}</td>`;
+            });
+        }
+
+        function adicionarPontuacao() {
+            const nome = document.getElementById("jogador-select").value;
+            pontuacoes[nome].presencas += Number(document.getElementById("presencas").value || 0);
+            pontuacoes[nome].vitorias += Number(document.getElementById("vitorias").value || 0);
+            pontuacoes[nome].assistencias += Number(document.getElementById("assistencias").value || 0);
+            pontuacoes[nome].gols += Number(document.getElementById("gols").value || 0);
+            salvarDados();
+            renderRanking();
+        }
+
+        function resetarRanking() {
+            if (confirm("Tem certeza que deseja resetar todo o ranking?")) {
+                jogadores.forEach(j => pontuacoes[j] = { presencas: 0, vitorias: 0, assistencias: 0, gols: 0 });
+                salvarDados();
+                renderRanking();
+            }
+        }
+
+        function renderSelect() {
+            const select = document.getElementById("jogador-select");
+            jogadores.forEach(j => {
+                const option = document.createElement("option");
+                option.value = j;
+                option.innerText = j;
+                select.appendChild(option);
+            });
+        }
+
+        function adicionarDivida() {
+            const nome = document.getElementById("nome-divida").value;
+            const valor = document.getElementById("valor-divida").value;
+            if (!nome || !valor) return;
+            dividas.push({ nome, valor });
+            salvarDados();
+            renderDividas();
+        }
+
+        function removerDivida(index) {
+            dividas.splice(index, 1);
+            salvarDados();
+            renderDividas();
+        }
+
+        function renderDividas() {
+            const table = document.getElementById("dividas");
+            table.innerHTML = `<tr><th>Nome</th><th>Valor (R$)</th>${isAdmin ? '<th>Ação</th>' : ''}</tr>`;
+            dividas.forEach((d, i) => {
+                const row = table.insertRow();
+                row.innerHTML = `<td>${d.nome}</td><td>${d.valor}</td>` +
+                    (isAdmin ? `<td><button onclick="removerDivida(${i})">Remover</button></td>` : "");
+            });
+        }
+
+        renderSelect();
+        renderRanking();
+        renderDividas();
+    </script>
+</body>
+
+</html>
